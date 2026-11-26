@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CYBERNET // Terminal Command Prompt</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap');
+
+    body {
+      background-color: #030a03;
+      color: #10b981;
+      font-family: 'Share Tech Mono', monospace;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    /* CRT Monitor Overlay & Scanlines */
+    .crt::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      z-index: 20;
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+    }
+
+    .crt::after {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: rgba(18, 16, 16, 0.08);
+      opacity: 0;
+      z-index: 20;
+      pointer-events: none;
+      animation: flicker 0.15s infinite;
+    }
+
+    @keyframes flicker {
+      0% { opacity: 0.27861; }
+      50% { opacity: 0.24587; }
+      100% { opacity: 0.27861; }
+    }
+
+    /* Terminal Green Glow */
+    .glow-green {
+      text-shadow: 0 0 5px rgba(16, 185, 129, 0.8), 0 0 10px rgba(16, 185, 129, 0.4);
+    }
+    .box-glow-green {
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.3), inset 0 0 10px rgba(16, 185, 129, 0.1);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #021107;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #059669;
+      border-radius: 3px;
+    }
+
+    /* Blink Cursor */
+    .cursor-blink {
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="crt min-h-screen flex flex-col justify-between p-2 md:p-4 bg-black text-emerald-500 font-mono relative overflow-hidden">
+
+  <!-- Background Binary Rain Canvas -->
+  <canvas id="matrixCanvas" class="absolute inset-0 z-0 opacity-25 pointer-events-none"></canvas>
+
+  <!-- Main Terminal Wrapper -->
+  <div class="relative z-10 flex flex-col flex-1 max-w-6xl w-full mx-auto bg-slate-950/90 border-2 border-emerald-500/60 rounded-lg box-glow-green overflow-hidden shadow-2xl backdrop-blur-md">
+    
+    <!-- CMD Window Header Bar -->
+    <header class="bg-emerald-950/80 border-b border-emerald-500/50 px-4 py-2 flex items-center justify-between font-['VT323'] text-xl tracking-wider">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-terminal text-emerald-400"></i>
+        <span class="glow-green font-bold text-emerald-300">C:\CYBERNET\SYSTEM32\cmd.exe - [MATRIX_PROTOCOL_v4.09]</span>
+      </div>
+      <div class="flex items-center space-x-4 text-sm font-sans">
+        <button id="btn-audio" class="hover:text-emerald-300 transition flex items-center space-x-1 cursor-pointer">
+          <i id="audio-icon" class="fa-solid fa-volume-high text-emerald-400"></i>
+          <span id="audio-status" class="text-xs">AUDIO: ON</span>
+        </button>
+        <div class="flex space-x-1.5">
+          <span class="w-3 h-3 rounded-full bg-yellow-500/80 inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-red-500/80 inline-block"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Console Output Screen -->
+    <main id="terminal-body" class="flex-1 p-4 overflow-y-auto space-y-3 font-['Share_Tech_Mono'] text-sm md:text-base leading-relaxed">
+      
+      <!-- System Welcome Header -->
+      <div class="space-y-1 border-b border-emerald-900/60 pb-3">
+        <pre class="text-xs sm:text-sm md:text-base text-emerald-400 font-bold leading-none hidden sm:block">
+ ██████╗██╗   ██╗██████╗ ███████╗██████╗ ███╗   ██╗███████╗████████╗
+██╔════╝╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗████╗  ██║██╔════╝╚══██╔══╝
+██║      ╚████╔╝ ██████╔╝█████╗  ██████╔╝██╔██╗ ██║█████╗     ██║   
+██║       ╚██╔╝  ██╔══██╗██╔══╝  ██╔══██╗██║╚██╗██║██╔══╝     ██║   
+╚██████╗   ██║   ██████╔╝███████╗██║  ██║██║ ╚████║███████╗   ██║   
+ ╚═════╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   
+        </pre>
+        <p class="text-emerald-300 font-bold">MS-DOS Kernel v10.0.19045.3803 [CYBERNET SECURE PROMPT]</p>
+        <p class="text-emerald-600 text-xs">(C) CyberNet Security Corp. All rights reserved.</p>
+        <p class="text-emerald-400 text-xs mt-2">Type <span class="text-emerald-200 underline">help</span> for a list of available hacking modules and interactive commands.</p>
+      </div>
+
+      <!-- Command Output Container -->
+      <div id="output-container" class="space-y-3"></div>
+
+      <!-- Active Interactive Command Line Input -->
+      <div class="flex items-center space-x-2 text-emerald-400 font-bold pt-2">
+        <span class="text-emerald-300">C:\CYBERNET&gt;</span>
+        <input 
+          type="text" 
+          id="cmd-input" 
+          class="flex-1 bg-transparent border-none outline-none text-emerald-300 font-['Share_Tech_Mono'] text-base tracking-wide caret-emerald-400"
+          placeholder="Type command here..."
+          autofocus
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <span class="w-2.5 h-5 bg-emerald-400 cursor-blink inline-block"></span>
+      </div>
+
+    </main>
+
+    <!-- Quick Action Module Shortcut Toolbar -->
+    <footer class="bg-emerald-950/90 border-t border-emerald-500/40 p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+      <button onclick="executeCommand('crack')" class="px-2 py-1.5 bg-emerald-900/40 border border-emerald-500/50 hover:bg-emerald-500 hover:text-black transition rounded text-left flex items-center space-x-2">
+        <i class="fa-solid fa-key text-emerald-400"></i>
+        <span>[1] CRACK</span>
+      </button>
+      <button onclick="executeCommand('scan')" class="px-2 py-1.5 bg-emerald-900/40 border border-emerald-500/50 hover:bg-emerald-500 hover:text-black transition rounded text-left flex items-center space-x-2">
+        <i class="fa-solid fa-network-wired text-emerald-400"></i>
+        <span>[2] SCAN</span>
+      </button>
+      <button onclick="executeCommand('attack')" class="px-2 py-1.5 bg-emerald-900/40 border border-emerald-500/50 hover:bg-emerald-500 hover:text-black transition rounded text-left flex items-center space-x-2">
+        <i class="fa-solid fa-skull text-emerald-400"></i>
+        <span>[3] ATTACK</span>
+      </button>
+      <button onclick="executeCommand('binary')" class="px-2 py-1.5 bg-emerald-900/40 border border-emerald-500/50 hover:bg-emerald-500 hover:text-black transition rounded text-left flex items-center space-x-2">
+        <i class="fa-solid fa-code text-emerald-400"></i>
+        <span>[4] BINARY</span>
+      </button>
+      <button onclick="executeCommand('sys')" class="px-2 py-1.5 bg-emerald-900/40 border border-emerald-500/50 hover:bg-emerald-500 hover:text-black transition rounded text-left flex items-center space-x-2">
+        <i class="fa-solid fa-microchip text-emerald-400"></i>
+        <span>[5] SYS</span>
+      </button>
+      <button onclick="executeCommand('help')" class="px-2 py-1.5 bg-emerald-900/40 border border-emerald-500/50 hover:bg-emerald-500 hover:text-black transition rounded text-left flex items-center space-x-2">
+        <i class="fa-solid fa-circle-question text-emerald-400"></i>
+        <span>[6] HELP</span>
+      </button>
+    </footer>
+
+  </div>
+
+  <!-- Audio Synthesis Engine using Web Audio API -->
+  <script>
+    /* ==========================================================================
+       1. WEB AUDIO SYNTHESIZER (No External Sound Files)
+       ========================================================================== */
+    class RetroSoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+
+      playKeyClick() {
+        if (this.muted) return;
+        this.init();
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600 + Math.random() * 400, this.ctx.currentTime);
+        
+        gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.04);
+      }
+
+      playBeep(freq = 880, duration = 0.1, type = 'sine') {
+        if (this.muted) return;
+        this.init();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+      }
+
+      playAlarm() {
+        if (this.muted) return;
+        this.init();
+        
+        for (let i = 0; i < 3; i++) {
+          setTimeout(() => {
+            this.playBeep(1200 - (i * 150), 0.08, 'sawtooth');
+          }, i * 90);
+        }
+      }
+
+      toggleAudio() {
+        this.muted = !this.muted;
+        return !this.muted;
+      }
+    }
+
+    const soundEngine = new RetroSoundEngine();
+
+    /* ==========================================================================
+       2. MATRIX BACKGROUND RAIN ENGINE
+       ========================================================================== */
+    const matrixCanvas = document.getElementById('matrixCanvas');
+    const matrixCtx = matrixCanvas.getContext('2d');
+
+    function resizeCanvas() {
+      matrixCanvas.width = window.innerWidth;
+      matrixCanvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const chars = '0101010101010101ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&*';
+    const fontSize = 14;
+    let columns = Math.floor(matrixCanvas.width / fontSize);
+    let drops = Array(columns).fill(1);
+
+    function drawMatrixRain() {
+      matrixCtx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+      matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+      matrixCtx.fillStyle = '#10b981';
+      matrixCtx.font = fontSize + 'px monospace';
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = chars.charAt(Math.floor(Math.random() * chars.length));
+        matrixCtx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+        if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        drops[i]++;
+      }
+    }
+    setInterval(drawMatrixRain, 33);
+
+    /* ==========================================================================
+       3. INTERACTIVE TERMINAL ENGINE & COMMANDS
+       ========================================================================== */
+    const cmdInput = document.getElementById('cmd-input');
+    const outputContainer = document.getElementById('output-container');
+    const terminalBody = document.getElementById('terminal-body');
+
+    let commandHistory = [];
+    let historyIndex = -1;
+    let isStreamActive = false;
+    let activeStreamInterval = null;
+
+    const COMMANDS = {
+      help: 'Displays list of supported hacker terminal modules',
+      crack: 'Brute-force crack targeted encrypted hash',
+      scan: 'Subnet network port scanner simulation',
+      attack: 'Initiate DDOS cyber attack simulation',
+      binary: 'Stream live real-time matrix binary data',
+      sys: 'Run system hardware telemetry diagnostics',
+      clear: 'Clear terminal screen console',
+      date: 'Display current system date & timestamp',
+      matrix: 'Accelerate background matrix rain speed'
+    };
+
+    cmdInput.addEventListener('keydown', (e) => {
+      soundEngine.playKeyClick();
+
+      if (e.key === 'Enter') {
+        const command = cmdInput.value.trim();
+        if (command.length > 0) {
+          commandHistory.push(command);
+          historyIndex = commandHistory.length;
+          executeCommand(command);
+        }
+        cmdInput.value = '';
+      } else if (e.key === 'ArrowUp') {
+        if (historyIndex > 0) {
+          historyIndex--;
+          cmdInput.value = commandHistory[historyIndex];
+        }
+      } else if (e.key === 'ArrowDown') {
+        if (historyIndex < commandHistory.length - 1) {
+          historyIndex++;
+          cmdInput.value = commandHistory[historyIndex];
+        } else {
+          historyIndex = commandHistory.length;
+          cmdInput.value = '';
+        }
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        autoCompleteCommand();
+      } else if (e.key === 'Escape') {
+        stopActiveStream();
+      }
+    });
+
+    // Global Key Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'l') {
+        e.preventDefault();
+        executeCommand('clear');
+      } else if (e.key === 'm' || e.key === 'M') {
+        if (document.activeElement !== cmdInput) {
+          toggleAudioState();
+        }
+      }
+    });
+
+    function toggleAudioState() {
+      const enabled = soundEngine.toggleAudio();
+      document.getElementById('audio-status').textContent = `AUDIO: ${enabled ? 'ON' : 'OFF'}`;
+      document.getElementById('audio-icon').className = enabled ? 'fa-solid fa-volume-high text-emerald-400' : 'fa-solid fa-volume-xmark text-red-400';
+    }
+
+    document.getElementById('btn-audio').addEventListener('click', toggleAudioState);
+
+    function autoCompleteCommand() {
+      const val = cmdInput.value.toLowerCase();
+      const match = Object.keys(COMMANDS).find(c => c.startsWith(val));
+      if (match) {
+        cmdInput.value = match;
+      }
+    }
+
+    function scrollTerminalToBottom() {
+      terminalBody.scrollTop = terminalBody.scrollHeight;
+    }
+
+    function printOutput(htmlContent) {
+      const line = document.createElement('div');
+      line.className = 'space-y-1';
+      line.innerHTML = htmlContent;
+      outputContainer.appendChild(line);
+      scrollTerminalToBottom();
+    }
+
+    function stopActiveStream() {
+      if (isStreamActive) {
+        clearInterval(activeStreamInterval);
+        isStreamActive = false;
+        printOutput('<p class="text-yellow-400">[!] Process aborted by operator (ESC).</p>');
+        soundEngine.playAlarm();
+      }
+    }
+
+    /* ==========================================================================
+       4. HACKER MODULE IMPLEMENTATIONS
+       ========================================================================== */
+    function executeCommand(cmdLine) {
+      stopActiveStream();
+
+      const args = cmdLine.trim().split(' ');
+      const mainCmd = args[0].toLowerCase();
+
+      // Echo User Command
+      printOutput(`<div class="text-emerald-300 font-bold"><span class="text-emerald-500">C:\\CYBERNET&gt;</span> ${cmdLine}</div>`);
+      soundEngine.playBeep(1000, 0.05);
+
+      switch (mainCmd) {
+        case 'help':
+          renderHelpModule();
+          break;
+        case 'crack':
+          renderCrackModule(args[1] || 'HASH-9928-X89');
+          break;
+        case 'scan':
+          renderScanModule(args[1] || '192.168.1.0/24');
+          break;
+        case 'attack':
+          renderAttackModule();
+          break;
+        case 'binary':
+          renderBinaryModule();
+          break;
+        case 'sys':
+          renderSysModule();
+          break;
+        case 'clear':
+          outputContainer.innerHTML = '';
+          break;
+        case 'date':
+          printOutput(`<p class="text-emerald-400">System Time: ${new Date().toISOString()} [UTC]</p>`);
+          break;
+        default:
+          printOutput(`<p class="text-red-400">'${mainCmd}' is not recognized as an internal module. Type '<span class="underline">help</span>' for menu.</p>`);
+          soundEngine.playAlarm();
+          break;
+      }
+    }
+
+    // 1. HELP MENU MODULE
+    function renderHelpModule() {
+      let html = '<div class="bg-emerald-950/40 p-3 rounded border border-emerald-800/60 space-y-2">';
+      html += '<p class="text-emerald-300 font-bold border-b border-emerald-800 pb-1">AVAILABLE TERMINAL COMMANDS & MODULES:</p>';
+      html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs md:text-sm">';
+      for (const [key, desc] of Object.entries(COMMANDS)) {
+        html += `<div><span class="text-emerald-200 font-bold uppercase">${key.padEnd(8)}</span> <span class="text-emerald-500">- ${desc}</span></div>`;
+      }
+      html += '</div></div>';
+      printOutput(html);
+    }
+
+    // 2. PASSWORD BRUTE-FORCE CRACKER MODULE
+    function renderCrackModule(target) {
+      isStreamActive = true;
+      let step = 0;
+      const targetHash = "CYBER_7782_KEY";
+      const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'bg-slate-900/80 p-3 rounded border border-emerald-500/50 space-y-2';
+      wrapper.innerHTML = `
+        <div class="flex justify-between items-center text-xs">
+          <span>TARGET: <span class="text-emerald-300 font-bold">${target}</span></span>
+          <span id="crack-status" class="text-yellow-400 font-bold animate-pulse">CRACKING...</span>
+        </div>
+        <div class="text-xl font-bold font-mono tracking-widest text-emerald-300" id="crack-display">------------</div>
+        <div class="w-full bg-emerald-950 rounded-full h-2 overflow-hidden border border-emerald-800">
+          <div id="crack-progress" class="bg-emerald-400 h-full w-0 transition-all"></div>
+        </div>
+      `;
+      outputContainer.appendChild(wrapper);
+
+      activeStreamInterval = setInterval(() => {
+        step++;
+        soundEngine.playBeep(400 + Math.random() * 800, 0.03);
+
+        let randomAttempt = "";
+        for (let i = 0; i < targetHash.length; i++) {
+          if (i < Math.floor((step / 40) * targetHash.length)) {
+            randomAttempt += targetHash[i];
+          } else {
+            randomAttempt += charset.charAt(Math.floor(Math.random() * charset.length));
+          }
+        }
+
+        document.getElementById('crack-display').textContent = randomAttempt;
+        const progressPct = Math.min(100, Math.floor((step / 40) * 100));
+        document.getElementById('crack-progress').style.width = `${progressPct}%`;
+
+        if (step >= 40) {
+          clearInterval(activeStreamInterval);
+          isStreamActive = false;
+          document.getElementById('crack-status').textContent = 'HASH MATCHED!';
+          document.getElementById('crack-status').className = 'text-emerald-400 font-bold';
+          document.getElementById('crack-display').textContent = targetHash;
+          soundEngine.playBeep(1200, 0.2);
+          printOutput('<p class="text-emerald-300 font-bold">[+] Encryption cracked successfully! Key extracted.</p>');
+        }
+        scrollTerminalToBottom();
+      }, 80);
+    }
+
+    // 3. SUBNET NETWORK SCANNER MODULE
+    function renderScanModule(subnet) {
+      isStreamActive = true;
+      let nodeIndex = 0;
+      const nodes = [
+        { ip: '192.168.1.1', status: 'ONLINE', port: '80 (HTTP)' },
+        { ip: '192.168.1.10', status: 'ONLINE', port: '22 (SSH)' },
+        { ip: '192.168.1.45', status: 'FILTERED', port: '443 (HTTPS)' },
+        { ip: '192.168.1.102', status: 'ONLINE', port: '3389 (RDP)' },
+        { ip: '192.168.1.254', status: 'ONLINE', port: '8080 (PROXY)' }
+      ];
+
+      printOutput(`<p class="text-emerald-400">[+] Initiating network subnet probe on ${subnet}...</p>`);
+
+      activeStreamInterval = setInterval(() => {
+        if (nodeIndex < nodes.length) {
+          const n = nodes[nodeIndex];
+          printOutput(`
+            <div class="text-xs flex space-x-4 border-l-2 border-emerald-500 pl-2">
+              <span class="text-emerald-300 font-bold">${n.ip}</span>
+              <span class="${n.status === 'ONLINE' ? 'text-emerald-400' : 'text-yellow-400'}">[${n.status}]</span>
+              <span class="text-emerald-500">OPEN PORT: ${n.port}</span>
+            </div>
+          `);
+          soundEngine.playBeep(800 + nodeIndex * 100, 0.05);
+          nodeIndex++;
+        } else {
+          clearInterval(activeStreamInterval);
+          isStreamActive = false;
+          printOutput('<p class="text-emerald-300 font-bold">[+] Network subnet scan completed.</p>');
+        }
+      }, 500);
+    }
+
+    // 4. CYBER ATTACK SIMULATOR MODULE
+    function renderAttackModule() {
+      isStreamActive = true;
+      let packets = 0;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'bg-red-950/30 p-3 rounded border border-red-500/40 space-y-2';
+      wrapper.innerHTML = `
+        <div class="flex justify-between items-center text-xs text-red-400 font-bold">
+          <span><i class="fa-solid fa-radiation mr-1"></i> CYBER ATTACK TELEMETRY ENGINE</span>
+          <span class="animate-pulse">STATUS: EXECUTING</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>PACKETS SENT: <span id="atk-packets" class="text-red-300 font-bold">0</span></div>
+          <div>BANDWIDTH: <span class="text-red-300 font-bold">1.42 GB/s</span></div>
+        </div>
+        <div class="text-xs text-red-400/80 font-mono overflow-hidden h-12" id="atk-log"></div>
+      `;
+      outputContainer.appendChild(wrapper);
+
+      activeStreamInterval = setInterval(() => {
+        packets += Math.floor(Math.random() * 450) + 120;
+        document.getElementById('atk-packets').textContent = packets.toLocaleString();
+
+        const log = document.getElementById('atk-log');
+        const hexStr = Array.from({length: 8}, () => Math.floor(Math.random()*16).toString(16)).join('').toUpperCase();
+        log.innerHTML += `<div>&gt; INJECT FLOOD BUFF [0x${hexStr}] -&gt; TARGET HOST OVERLOADED</div>`;
+        log.scrollTop = log.scrollHeight;
+
+        soundEngine.playBeep(200 + Math.random() * 300, 0.02, 'sawtooth');
+        scrollTerminalToBottom();
+      }, 120);
+    }
+
+    // 5. MATRIX BINARY STREAM DUMP
+    function renderBinaryModule() {
+      isStreamActive = true;
+      let count = 0;
+
+      printOutput('<p class="text-emerald-400">[+] Opening raw binary socket stream. Press ESC to abort.</p>');
+
+      activeStreamInterval = setInterval(() => {
+        let binaryChunk = '';
+        for (let i = 0; i < 64; i++) {
+          binaryChunk += Math.random() > 0.5 ? '1' : '0';
+        }
+        printOutput(`<div class="text-xs text-emerald-500/90 font-mono tracking-widest">${binaryChunk}</div>`);
+        soundEngine.playBeep(900 + (count % 4) * 100, 0.02);
+        count++;
+
+        if (count > 40) {
+          clearInterval(activeStreamInterval);
+          isStreamActive = false;
+          printOutput('<p class="text-emerald-300 font-bold">[+] Stream buffer full. Socket closed.</p>');
+        }
+      }, 60);
+    }
+
+    // 6. SYSTEM DIAGNOSTICS MODULE
+    function renderSysModule() {
+      const cpuLoad = Math.floor(Math.random() * 40) + 45;
+      const ramLoad = Math.floor(Math.random() * 30) + 60;
+      const temp = Math.floor(Math.random() * 15) + 52;
+
+      let html = `
+        <div class="bg-emerald-950/40 p-3 rounded border border-emerald-500/50 space-y-2 text-xs">
+          <p class="text-emerald-300 font-bold border-b border-emerald-800 pb-1">CYBERNET SYSTEM HARDWARE TELEMETRY</p>
+          <div class="space-y-1">
+            <div class="flex justify-between"><span>CORE CPU LOAD:</span><span>${cpuLoad}%</span></div>
+            <div class="w-full bg-emerald-950 h-2 rounded"><div class="bg-emerald-400 h-full" style="width: ${cpuLoad}%"></div></div>
+          </div>
+          <div class="space-y-1">
+            <div class="flex justify-between"><span>NEURAL RAM ALLOCATION:</span><span>${ramLoad}%</span></div>
+            <div class="w-full bg-emerald-950 h-2 rounded"><div class="bg-emerald-400 h-full" style="width: ${ramLoad}%"></div></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 pt-2 text-emerald-400">
+            <div>GPU CORE TEMP: <span class="text-emerald-200">${temp} °C</span></div>
+            <div>UPTIME: <span class="text-emerald-200">142:09:44 SEC</span></div>
+          </div>
+        </div>
+      `;
+      printOutput(html);
+      soundEngine.playBeep(1100, 0.1);
+    }
+  </script>
+</body>
+</html>
